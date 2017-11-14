@@ -1,0 +1,335 @@
+--Submitted by Alpha, 2017-08-09 13:39
+--2017-09-05 16：39 完成骨骼旋转模式和骨骼link对齐等功能
+--2017-09-07 20：25 完成烘焙物体关键帧工具，增加之前的注释说明
+--2017-09-12 10：18 完成max摄像机FOV计算成Unity的FOV的工具
+--2017-09-13 11：52 完成把相机的fov变化记录在一个dummy上
+--2017-09-19 15：16 完成烘焙相机的Fov值为Scale的X值工具
+--2017-09-29 11：10 更新烘焙相机的Fov值为Scale的X值工具，还是使用Dummy代理数据，主要做了旋转值得转换算法
+--2017-10-20 11：23 完成多相机切换预览工具
+--加密语句
+--encryptScript "F:\\Resources\\MaxScripts\\TAMaxTools.ms"
+/* 数据类型
+Float 
+Integer 
+String
+Time --number taken as frames 
+Double 
+Integer64
+IntegerPtr
+*/
+--清除Channel信息--
+rollout ClearChannelInfo "ClearChannelInfo"
+(
+    spinner channealID "Channel_ID" width:100 height:30 pos:[50,20] range:[-4,2,2]
+    button clearthis "Clear" width:50 height:20 pos:[160,18]
+    button clearall "Clear All" width:70 height:30 pos:[100,60]
+    on clearthis pressed do
+    (
+        channelInfo.ClearChannel $ channealID.value
+    )
+        on clearall pressed do
+    (
+        channelInfo.ClearChannel $ 2
+		channelInfo.ClearChannel $ 0
+        channelInfo.ClearChannel $ -1
+		channelInfo.ClearChannel $ -2
+    )
+)
+--改变普通骨骼旋转模式--
+rollout AngleChange "AngleChange"
+(
+    button EulerXYZ "Euler XYZ" width:100 height:35 pos:[30,10]
+    button SmoothRotation "Smooth Rotation" width:100 height:35 pos:[160,10]
+    on EulerXYZ pressed do
+    (
+        for sbone in selection do 
+        (
+            if classof sbone == BoneGeometry do
+            (
+                sbone.rotation.controller = Euler_XYZ ()    
+            )
+        )
+    )
+    on SmoothRotation pressed do
+    (
+        for sbone in selection do 
+        (
+            if classof sbone == BoneGeometry do
+            (
+                sbone.rotation.controller = bezier_rotation ()
+            )
+        )
+    )
+)
+--特殊需求改变一些骨骼的link以及角度--
+rollout ResetBone "ResetBone"
+(
+    groupBox Unlink "Unlink" pos:[5,0] width:275 height:140 align:#left
+    editText BoneName1 "BoneName" width:130 height:20 pos:[15,20] 
+    editText BoneName2 "BoneName" width:130 height:20 pos:[15,45]
+    button ResetBoneName "UnLinkBoneWithName" width:120 height:30 pos:[150,13]
+    button ResetBoneSel "UnLinkBoneBySelection" width:120 height:30 pos:[150,45]
+    editText ParentName "ParentName" width:130 height:20 pos:[15,70] 
+    button ResetBoneName1 "linkBoneWithName" width:120 height:30 pos:[150,77]
+    label waring "设置完毕一定要全选所有物体再执行!" pos:[40,115] width:220 height:20 align:#left
+        --跟设置的名称相关--
+        on ResetBoneName pressed do
+    (
+        for sbone in selection do 
+        (
+            if sbone.name == BoneName1.text or sbone.name == BoneName2.text do
+            (
+                undo "Undo" on
+                (
+                    sbone.parent = null
+                    sbone.position = [0,0,0]
+                    sbone.rotation = quat 0.707107 0 0.707107 0
+                )
+            )
+        )   
+    )
+    --跟是否选择相关--
+        on ResetBoneSel pressed do
+    (
+        for sbone in selection do 
+        (
+            undo "Undo" on
+                (
+                    sbone.parent = null
+                    sbone.position = [0,0,0]
+                    sbone.rotation = quat 0.707107 0 0.707107 0
+                )
+        )   
+    )
+        on ResetBoneName1 pressed do
+    (
+        for sbone in selection do 
+        (
+            obj = getnodebyname ParentName.text
+            if sbone.name == BoneName1.text or sbone.name == BoneName2.text do
+            (
+                if obj != undefined then 
+                (
+                    undo "Undo" on
+                    (
+                        sbone.transform = obj.transform   --CS骨骼没有pos信息，对齐必须用transform来操作--
+                        sbone.center = obj.center
+                        sbone.parent = obj  
+                    )
+                )
+            )
+        )   
+    )
+)
+/*
+--烘焙物体（主要是相机）动画，每帧都记录--
+rollout BakeCameraAni "BakeCameraAni"
+(
+    spinner StartFrame "Start Frame" width:80 height:30 pos:[50,15] type:#integer  --range:[-4,2,2]
+    spinner EndFrame "End Frame" width:100 height:30 pos:[170,15] type:#integer  --range:[-4,2,2]
+    button Bake "Bake!" width:100 height:30 pos:[100,40]
+    on Bake pressed do
+    (
+        for obj in $ do
+        (
+            animate On
+                for t in StartFrame.value to EndFrame.value do
+                (
+                    sliderTime = t
+                    max set key keys
+                )
+        )
+    )
+)
+*/
+--MaxToUnity相机FOV转换--
+rollout MaxFovToUnity "MaxFovToUnity"
+(
+    spinner CameraWidth "分辨率-宽" width:80 height:20 pos:[55,10] type:#Float range:[1.0,4096.0,1280.0]
+    spinner CameraHeight "分辨率-高" width:80 height:20 pos:[190,10] type:#Float range:[1.0,4096.0,720.0]
+    spinner TargetFov "目标FOV" width:80 height:20 pos:[55,30]   range:[1.0,179.0,45.0]
+    button  Calculate "计算" width:125 height:20 pos:[150,30]
+    on Calculate pressed do
+    (
+        fieldOfView = 2 * atan(tan(DegToRad(TargetFov.value) * 0.5) * CameraHeight.value/CameraWidth.value)
+        ComsologFOV = ceil(RadToDeg(fieldOfView)) as string 
+        messagebox ("Unity3d中的FOV请设置为：" + ComsologFOV + "  ^_^")
+    )
+)
+--Bake辅助体PosY值代理FOV修改值--
+rollout BakeDummyPosY "BakeDummyPosY"
+(
+    spinner StartFrame "Start Frame" width:80 height:30 pos:[50,15] type:#integer  range:[-1000,1000,0]
+    spinner EndFrame "End Frame" width:100 height:30 pos:[170,15] type:#integer  range:[-1000,1000,100]
+    spinner CurCamFov "Camera Start FOV" width:100 height:30 pos:[65,40] type:#float  range:[0.0,175.0,45.0]
+    pickbutton pickCam "Pick Target Camera" width:102 height:25 pos:[168,35]
+    on pickCam picked obj do
+    (
+        tempDummy = Dummy pos:[0.0,0.0,0.0] isSelected:off name:"FovDummy"
+        select tempDummy
+        pickCam.text = obj.name
+        pickedCam  = obj
+        print(pickedCam.fov)
+        for sel in $ do
+        (
+            animate On
+                for t in StartFrame.value to EndFrame.value do
+                (
+                    sliderTime = t
+                    max set key keys
+                    curFov = pickedCam.fov
+                    $FovDummy.pos.y = curFov - CurCamFov.value
+                )
+        )
+    )
+)
+--烘焙相机的Fov值为Scale的X值--
+rollout BakeCameraFovToScale "BakeCameraFovToScale"
+(
+    spinner StartFrame "Start Frame" width:80 height:30 pos:[50,15] type:#integer  range:[-1000,1000,0]
+    spinner EndFrame "End Frame" width:100 height:30 pos:[170,15] type:#integer  range:[-1000,1000,100]
+    pickbutton pickCam "Pick Target Camera" width:102 height:25 pos:[100,40]
+    on pickCam picked obj do
+    (
+        pickCam.text = obj.name
+        pickedCam  = obj
+        pickedCam.fovType = 2 --相机视角从水平改成垂直
+        tempDummy = Dummy pos:[0,0,0] isSelected:on
+        animate On
+                for t in StartFrame.value to EndFrame.value do
+                (
+                    sliderTime = t
+                    max set key keys
+                    tempDummy.transform = pickedCam.transform
+                    --print(-tempDummy.rotation.x_rotation) 
+                    tempDummy.rotation.x_rotation  = (180.0 - tempDummy.rotation.x_rotation)
+                    tempDummy.rotation.z_rotation  =  (-180.0 + tempDummy.rotation.z_rotation)
+                    /* 说明
+                    Max TargetCamer进入unity之后位置信息完全OK
+                    旋转信息的Y和Z会互换，MAX里面的Y也就是Unity里面的Z完全OK
+                    旋转信息MAX里面的的X和Z需要通过换算来得到，换算过程为：
+                    X:Max - 90=Unity
+                    Z:Max * (-1) = Unity
+                    但是我们实际要的结果为:
+                    X: 90 - Max = Unity
+                    Z: 180 - Max = Unity
+                    得知此两套转换方法，从Max输出的结果为上面的算法
+                    */
+                    curFov = dotNetObject "System.Double" pickedCam.Curfov
+                    curFovRes = ((dotNetClass "System.Math").round curFov 2) as float --保留小数位数
+                    pickedCam.scale.x = curFovRes
+/*
+                        保留的算法
+                    --pos = $FovDummy[3]
+					--$FovDummy.scale.x = curFovRes
+                    --$FovDummy.pos = curPos
+                    --addNewKey curPos t
+*/ 
+                )
+    )
+)
+--多相机预览连续预览工具--
+rollout MuiltyCameraPreview "MuiltyCameraPreview"
+(
+    button CreatMainCam "Creat MainCam" pos:[40,5] width:100 height:30
+    pickbutton pickcam "Pickcam" pos:[145,5] width:100 height:30
+    button CurView "CurView" pos:[40,40] width:100 height:30
+    button btnReadme "Readme" pos:[145,40] width:100 height:30
+    global selCam
+    global MainCam
+    global CamArray = #()
+    global Trigger = false
+    on pickcam picked obj do
+    (
+        if obj != undefined  and Trigger == true then
+        (
+            pickcam.text = obj.name
+            selCam = obj
+            MainCam.parent = freecam001
+            MainCam.transform = selCam.transform
+            PosCon = MainCam.position.controller.Position_Constraint
+            RotCon = MainCam.rotation.controller.Orientation_Constraint
+            for b = 1 to  CamArray.count do
+            (
+                if (PosCon.getNode b).name == selCam.name then
+                (
+                    --当前约束体和选择物体的名称一致就把当前Camera约束值设置成100--
+                    k = (addnewkey MainCam.pos.controller.Position_Constraint.controller.weight[b].controller currenttime)
+                    k.value = 100
+                    k.inTangentType = #step
+                    k = (addnewkey MainCam.rotation.controller.Orientation_Constraint.controller.weight[b].controller currenttime)
+                    k.value = 100
+                    k.inTangentType = #step
+                )else--否则就把其他Camera约束值设置成0--
+                (
+                    k = (addnewkey MainCam.pos.controller.Position_Constraint.controller.weight[b].controller currenttime)
+                    k.value = 0
+                    k.inTangentType = #step
+                    k = (addnewkey MainCam.rotation.controller.Orientation_Constraint.controller.weight[b].controller currenttime)
+                    k.value = 0
+                    k.inTangentType = #step
+                )
+            )
+        )else messagebox("请先点击左边的按钮创建一个临时的MainCamera!")
+    )
+    on CreatMainCam pressed do
+    (
+    --创建主相机--
+        max select all
+        for s in selection where classof  s == TargetCamera or classof  s == freeCamera do appendifunique CamArray s.name
+            if CamArray.count>1 then
+            (
+                Trigger = true
+                clearSelection()                
+                MainCam = freeCamera name:"MainCamera" isSelected:on 
+                freeze MainCam
+                --MainCam.transform = cam.transform
+                MainCam.showFrozenInGray = off
+                MainCam.wirecolor = black
+            --设置主相机的位置和旋转约束--
+                MainCam.position.controller = position_list()
+                MainCam.position.controller.delete 1
+                MainCam.position.controller.available.controller = Position_Constraint()
+                MainCam.rotation.controller = rotation_list()
+                MainCam.rotation.controller.delete 1
+                MainCam.rotation.controller.available.controller = Orientation_Constraint()
+            --设置主相机的约束对象--设置主相机的选中曲线的controller--
+                for countcam = 1 to CamArray.count do
+                (
+                    MainCam.position.controller.Position_Constraint.appendTarget (getNodeByName CamArray[countcam]) 0
+                    MainCam.rotation.controller.Orientation_Constraint.appendTarget (getNodeByName CamArray[countcam]) 0
+                    --默认创建出来的 MainCam.position.controller.Position_Constraint.controller.weight 是没有controller的，宏记录器抓出来的也不完整，会忽略给weight添加一个controller的语句，这里需要手动添加--巨坑！！！！
+                    MainCam.position.controller.Position_Constraint.controller.weight[countcam].controller = bezier_float()
+                    MainCam.rotation.controller.Orientation_Constraint.controller.weight[countcam].controller = bezier_float()
+                )               
+            )else messagebox("请确认场景中有两个及以上的相机，无相机或者单相机都不需要切换~")
+    )
+    --设置当前视口为主相机，可供预览--
+    on CurView pressed do
+    (
+        if Trigger == true then
+        (
+            camView = MainCam
+            viewport.setCamera camView
+        )
+        else messagebox("请先点击上面的按钮创建一个临时的MainCamera!")
+    )
+    on btnReadme pressed do
+    (
+        rollout roll_Info "Info" width:166 height:110
+        (
+            label lbl1 "使用说明" pos:[60,5] width:122 height:13
+            label lbl12 "点击CreatMainCam按钮创建一个主相机，把时间滑块滑到欲切换相机的时间点，点击PickCam选择想要切换的相机即可。CurView表示切换当前视口为当前相机。" pos:[11,22] width:149 height:88
+        )
+        createDialog roll_Info style:#(#style_toolwindow,#style_sysmenu)
+    )
+)
+theNewFloater = newRolloutFloater "TA Max Tools" 300 260 
+addrollout ClearChannelInfo theNewFloater rolledUp:true
+addrollout AngleChange theNewFloater rolledUp:true
+addrollout ResetBone theNewFloater rolledUp:true
+addrollout MaxFovToUnity theNewFloater rolledUp:true
+addrollout BakeDummyPosY theNewFloater rolledUp:true
+addrollout BakeCameraFovToScale theNewFloater rolledUp:true
+addrollout MuiltyCameraPreview theNewFloater rolledUp:false
++
