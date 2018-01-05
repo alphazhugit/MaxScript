@@ -324,6 +324,56 @@ rollout MuiltyCameraPreview "MuiltyCameraPreview"
         createDialog roll_Info style:#(#style_toolwindow,#style_sysmenu)
     )
 )
+
+
+--将模型UV从MapChannel2转移到MapChannel1--
+rollout MoveUV2To1 "MoveUV2To1"
+(
+	
+	Button ChangeUV "Change" width:150 height:20 pos:[5,10]
+	
+	
+	on ChangeUV pressed do
+	(
+		
+		
+		for i in selection do
+		(
+			print(selection[1].name)
+		)
+		
+		
+				-- check if UV Modifier exists
+		if (ClassOf $.modifiers[1]) == unwrap_uvw then
+			(
+				print ("unwrap modifier exists")
+				-- uvw modifier exists, assume it's on channel 3, so set it to channel 1
+				$.unwrap_uvw.unwrap.setMapChannel 2
+			)
+			--else add UV Modifier
+			--select channel 3, then reset UV then channel 1
+		else
+			(
+				print ("no unwrap modifier exists")
+				-- add uvw modifier
+				modPanel.addModToSelection (Unwrap_UVW ()) ui:on
+				-- set uvw channel to 3
+				$.modifiers[#unwrap_uvw].unwrap.setMapChannel 2
+				-- reset uvws
+				$.modifiers[#unwrap_uvw].unwrap.reset ()
+				-- set uvw channel to 1
+				forcecompleteredraw dodisabled:true
+				$.modifiers[#unwrap_uvw].unwrap.setMapChannel 0
+				macros.run "Modifier Stack" "Convert_to_Poly"
+					
+			)
+		
+	)
+ 
+
+)
+createdialog MoveUV2To1
+
 theNewFloater = newRolloutFloater "TA Max Tools" 300 260 
 addrollout ClearChannelInfo theNewFloater rolledUp:true
 addrollout AngleChange theNewFloater rolledUp:true
