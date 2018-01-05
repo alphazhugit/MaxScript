@@ -337,18 +337,16 @@ rollout MoveUV2To1 "MoveUV2To1"
 	(
 		
 		
-		for i in selection do
+		s = selection as array
+	
+		for i = 1 to s.count do
 		(
-			print(selection[1].name)
-		)
-		
-		
-				-- check if UV Modifier exists
-		if (ClassOf $.modifiers[1]) == unwrap_uvw then
+					-- check if UV Modifier exists
+		if (ClassOf s[i].modifiers[1]) == unwrap_uvw then
 			(
 				print ("unwrap modifier exists")
 				-- uvw modifier exists, assume it's on channel 3, so set it to channel 1
-				$.unwrap_uvw.unwrap.setMapChannel 2
+				s[i].unwrap_uvw.unwrap.setMapChannel 2
 			)
 			--else add UV Modifier
 			--select channel 3, then reset UV then channel 1
@@ -358,21 +356,21 @@ rollout MoveUV2To1 "MoveUV2To1"
 				-- add uvw modifier
 				modPanel.addModToSelection (Unwrap_UVW ()) ui:on
 				-- set uvw channel to 3
-				$.modifiers[#unwrap_uvw].unwrap.setMapChannel 2
+				s[i].modifiers[#unwrap_uvw].unwrap.setMapChannel 2
 				-- reset uvws
-				$.modifiers[#unwrap_uvw].unwrap.reset ()
+				s[i].modifiers[#unwrap_uvw].unwrap.reset ()
 				-- set uvw channel to 1
 				forcecompleteredraw dodisabled:true
-				$.modifiers[#unwrap_uvw].unwrap.setMapChannel 0
+				s[i].modifiers[#unwrap_uvw].unwrap.setMapChannel 0
 				macros.run "Modifier Stack" "Convert_to_Poly"
 					
 			)
+		)
 		
 	)
  
 
 )
-createdialog MoveUV2To1
 
 theNewFloater = newRolloutFloater "TA Max Tools" 300 260 
 addrollout ClearChannelInfo theNewFloater rolledUp:true
@@ -382,4 +380,5 @@ addrollout MaxFovToUnity theNewFloater rolledUp:true
 addrollout BakeDummyPosY theNewFloater rolledUp:true
 addrollout BakeCameraFovToScale theNewFloater rolledUp:true
 addrollout MuiltyCameraPreview theNewFloater rolledUp:false
+addrollout MoveUV2To1 theNewFloater rolledUp:false
 +
